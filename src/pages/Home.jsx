@@ -1,25 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { Heart, Flag, Users, Car, Star } from 'lucide-react';
-
-// Mock data for demonstration
-const defaultTeams = [
-    { id: '1', name: 'Mercedes', country: 'Germany', key: 'mercedes', drivers: ['ham', 'rus'] },
-    { id: '2', name: 'Red Bull Racing', country: 'Austria', key: 'redBull', drivers: ['ver', 'per'] },
-    { id: '3', name: 'Ferrari', country: 'Italy', key: 'ferrari', drivers: ['lec', 'sai'] },
-    { id: '4', name: 'McLaren', country: 'UK', key: 'mclaren', drivers: ['nor', 'pia'] },
-    { id: '5', name: 'Alpine', country: 'France', key: 'alpine', drivers: ['oco', 'gas'] },
-    { id: '6', name: 'Aston Martin', country: 'UK', key: 'astonMartin', drivers: ['alo', 'str'] }
-];
-
-const defaultDrivers = [
-    { id: 'ham', name: 'Lewis Hamilton', nationality: 'British', teamId: '1', number: 44 },
-    { id: 'rus', name: 'George Russell', nationality: 'British', teamId: '1', number: 63 },
-    { id: 'ver', name: 'Max Verstappen', nationality: 'Dutch', teamId: '2', number: 1 },
-    { id: 'per', name: 'Sergio Pérez', nationality: 'Mexican', teamId: '2', number: 11 },
-    { id: 'lec', name: 'Charles Leclerc', nationality: 'Monégasque', teamId: '3', number: 16 },
-    { id: 'sai', name: 'Carlos Sainz', nationality: 'Spanish', teamId: '3', number: 55 }
-];
 
 const teamColors = {
     mercedes: 'from-cyan-400 to-teal-600',
@@ -27,10 +9,15 @@ const teamColors = {
     ferrari: 'from-red-500 to-red-700',
     mclaren: 'from-orange-400 to-orange-600',
     alpine: 'from-blue-400 to-blue-600',
-    astonMartin: 'from-green-400 to-green-600'
+    astonMartin: 'from-green-400 to-green-600',
+    williams: 'from-blue-400 to-blue-600',
+    alphaTauri: 'from-gray-600 to-blue-800',
+    alfaRomeo: 'from-red-800 to-red-900',
+    haas: 'from-gray-400 to-gray-600'
 };
 
-function Home({ teams = defaultTeams, drivers = defaultDrivers, favoriteTeams = [], favoriteDrivers = [], toggleFavoriteTeam = () => {}, toggleFavoriteDriver = () => {} }) {
+function Home({ teams = [], drivers = [], favoriteTeams = [], favoriteDrivers = [], toggleFavoriteTeam = () => {}, toggleFavoriteDriver = () => {} }) {
+    const navigate = useNavigate();
     const [currentSlide, setCurrentSlide] = useState(0);
     const [activeTab, setActiveTab] = useState('teams');
     const [searchTerm, setSearchTerm] = useState('');
@@ -50,10 +37,12 @@ function Home({ teams = defaultTeams, drivers = defaultDrivers, favoriteTeams = 
     }, []);
 
     useEffect(() => {
-        const interval = setInterval(() => {
-            setCurrentSlide((prev) => (prev + 1) % featuredTeams.length);
-        }, 4000);
-        return () => clearInterval(interval);
+        if (featuredTeams.length > 0) {
+            const interval = setInterval(() => {
+                setCurrentSlide((prev) => (prev + 1) % featuredTeams.length);
+            }, 4000);
+            return () => clearInterval(interval);
+        }
     }, [featuredTeams.length]);
 
     const filteredTeams = teams.filter(team =>
@@ -65,6 +54,29 @@ function Home({ teams = defaultTeams, drivers = defaultDrivers, favoriteTeams = 
         driver.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         driver.nationality.toLowerCase().includes(searchTerm.toLowerCase())
     );
+
+    const scrollToTeams = () => {
+        const teamsSection = document.getElementById('teams-section');
+        if (teamsSection) {
+            teamsSection.scrollIntoView({ behavior: 'smooth' });
+        }
+    };
+
+    const navigateToFavorites = () => {
+        navigate('/favorites');
+    };
+
+    const navigateToCreateTeam = () => {
+        navigate('/create-team');
+    };
+
+    const navigateToTeamDetails = (teamId) => {
+        navigate(`/teams/${teamId}`);
+    };
+
+    const navigateToDriverDetails = (driverId) => {
+        navigate(`/drivers/${driverId}`);
+    };
 
     if (isLoading) {
         return (
@@ -122,10 +134,16 @@ function Home({ teams = defaultTeams, drivers = defaultDrivers, favoriteTeams = 
                                 transition={{ delay: 0.6 }}
                                 className="flex gap-4 justify-center"
                             >
-                                <button className="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-full font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg">
+                                <button
+                                    onClick={scrollToTeams}
+                                    className="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-full font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg"
+                                >
                                     Explore Teams
                                 </button>
-                                <button className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-red-600 px-8 py-3 rounded-full font-semibold transition-all duration-300 transform hover:scale-105">
+                                <button
+                                    onClick={navigateToFavorites}
+                                    className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-red-600 px-8 py-3 rounded-full font-semibold transition-all duration-300 transform hover:scale-105"
+                                >
                                     My Favorites
                                 </button>
                             </motion.div>
@@ -134,17 +152,19 @@ function Home({ teams = defaultTeams, drivers = defaultDrivers, favoriteTeams = 
                 </AnimatePresence>
 
                 {/* Carousel Navigation */}
-                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
-                    {featuredTeams.map((_, index) => (
-                        <button
-                            key={index}
-                            onClick={() => setCurrentSlide(index)}
-                            className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                                index === currentSlide ? 'bg-white' : 'bg-white bg-opacity-50'
-                            }`}
-                        />
-                    ))}
-                </div>
+                {featuredTeams.length > 0 && (
+                    <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+                        {featuredTeams.map((_, index) => (
+                            <button
+                                key={index}
+                                onClick={() => setCurrentSlide(index)}
+                                className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                                    index === currentSlide ? 'bg-white' : 'bg-white bg-opacity-50'
+                                }`}
+                            />
+                        ))}
+                    </div>
+                )}
 
                 {/* Geometric Background Elements */}
                 <div className="absolute top-10 right-10 w-32 h-32 border-4 border-white border-opacity-20 rotate-45 animate-pulse" />
@@ -184,7 +204,7 @@ function Home({ teams = defaultTeams, drivers = defaultDrivers, favoriteTeams = 
             </section>
 
             {/* Search and Tabs Section - Full Width */}
-            <section className="py-16 w-full bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900">
+            <section id="teams-section" className="py-16 w-full bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900">
                 <div className="px-8">
                     <motion.div
                         initial={{ y: 30, opacity: 0 }}
@@ -237,7 +257,7 @@ function Home({ teams = defaultTeams, drivers = defaultDrivers, favoriteTeams = 
                                     exit={{ opacity: 0, y: -20 }}
                                     className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6"
                                 >
-                                    {filteredTeams.map((team, index) => (
+                                    {filteredTeams.length > 0 ? filteredTeams.map((team, index) => (
                                         <motion.div
                                             key={team.id}
                                             initial={{ opacity: 0, y: 50 }}
@@ -245,7 +265,7 @@ function Home({ teams = defaultTeams, drivers = defaultDrivers, favoriteTeams = 
                                             transition={{ delay: index * 0.1 }}
                                             className="group relative overflow-hidden rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:scale-105"
                                         >
-                                            <div className={`h-48 bg-gradient-to-br ${teamColors[team.key]} relative`}>
+                                            <div className={`h-48 bg-gradient-to-br ${teamColors[team.key] || 'from-gray-400 to-gray-600'} relative`}>
                                                 <div className="absolute inset-0 bg-black bg-opacity-20 group-hover:bg-opacity-10 transition-all duration-300" />
 
                                                 {/* Favorite Button */}
@@ -278,15 +298,22 @@ function Home({ teams = defaultTeams, drivers = defaultDrivers, favoriteTeams = 
                                             <div className="p-6 bg-white dark:bg-gray-800">
                                                 <div className="flex justify-between items-center mb-3">
                                                     <span className="text-sm text-gray-500 dark:text-gray-400">
-                                                        {team.drivers.length} Drivers
+                                                        {team.drivers ? team.drivers.length : 0} Drivers
                                                     </span>
-                                                    <button className="text-red-500 hover:text-red-600 font-semibold text-sm">
+                                                    <button
+                                                        onClick={() => navigateToTeamDetails(team.id)}
+                                                        className="text-red-500 hover:text-red-600 font-semibold text-sm transition-colors duration-300"
+                                                    >
                                                         View Details →
                                                     </button>
                                                 </div>
                                             </div>
                                         </motion.div>
-                                    ))}
+                                    )) : (
+                                        <div className="col-span-full text-center py-12">
+                                            <p className="text-gray-500 dark:text-gray-400 text-lg">No teams found</p>
+                                        </div>
+                                    )}
                                 </motion.div>
                             )}
 
@@ -299,7 +326,7 @@ function Home({ teams = defaultTeams, drivers = defaultDrivers, favoriteTeams = 
                                     exit={{ opacity: 0, y: -20 }}
                                     className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6"
                                 >
-                                    {filteredDrivers.map((driver, index) => {
+                                    {filteredDrivers.length > 0 ? filteredDrivers.map((driver, index) => {
                                         const team = teams.find(t => t.id === driver.teamId);
                                         return (
                                             <motion.div
@@ -312,7 +339,7 @@ function Home({ teams = defaultTeams, drivers = defaultDrivers, favoriteTeams = 
                                                 <div className="relative p-6">
                                                     {/* Driver Number */}
                                                     <div className="absolute top-4 right-4 w-12 h-12 bg-red-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
-                                                        {driver.number}
+                                                        {driver.number || '?'}
                                                     </div>
 
                                                     {/* Favorite Button */}
@@ -336,12 +363,15 @@ function Home({ teams = defaultTeams, drivers = defaultDrivers, favoriteTeams = 
                                                             {driver.nationality}
                                                         </p>
                                                         {team && (
-                                                            <div className={`inline-block px-3 py-1 rounded-full text-sm font-medium text-white bg-gradient-to-r ${teamColors[team.key]}`}>
+                                                            <div className={`inline-block px-3 py-1 rounded-full text-sm font-medium text-white bg-gradient-to-r ${teamColors[team.key] || 'from-gray-400 to-gray-600'}`}>
                                                                 {team.name}
                                                             </div>
                                                         )}
                                                         <div className="mt-4">
-                                                            <button className="text-red-500 hover:text-red-600 font-semibold text-sm">
+                                                            <button
+                                                                onClick={() => navigateToDriverDetails(driver.id)}
+                                                                className="text-red-500 hover:text-red-600 font-semibold text-sm transition-colors duration-300"
+                                                            >
                                                                 View Profile →
                                                             </button>
                                                         </div>
@@ -349,7 +379,11 @@ function Home({ teams = defaultTeams, drivers = defaultDrivers, favoriteTeams = 
                                                 </div>
                                             </motion.div>
                                         );
-                                    })}
+                                    }) : (
+                                        <div className="col-span-full text-center py-12">
+                                            <p className="text-gray-500 dark:text-gray-400 text-lg">No drivers found</p>
+                                        </div>
+                                    )}
                                 </motion.div>
                             )}
                         </AnimatePresence>
@@ -373,7 +407,10 @@ function Home({ teams = defaultTeams, drivers = defaultDrivers, favoriteTeams = 
                         <p className="text-xl mb-8 opacity-90">
                             Build your dream F1 team with custom drivers and compete in the championship of your imagination.
                         </p>
-                        <button className="inline-block bg-white text-red-600 px-10 py-4 rounded-full font-bold text-lg hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 shadow-xl">
+                        <button
+                            onClick={navigateToCreateTeam}
+                            className="inline-block bg-white text-red-600 px-10 py-4 rounded-full font-bold text-lg hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 shadow-xl"
+                        >
                             Create Your Team
                         </button>
                     </motion.div>
