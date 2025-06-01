@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Heart, Flag, Users, Car, Star } from 'lucide-react';
+import { Heart, Flag, Users, Car, Star, Search, X } from 'lucide-react';
 
 const teamColors = {
     mercedes: 'from-cyan-400 to-teal-600',
@@ -45,15 +45,74 @@ function Home({ teams = [], drivers = [], favoriteTeams = [], favoriteDrivers = 
         }
     }, [featuredTeams.length]);
 
-    const filteredTeams = teams.filter(team =>
-        team.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        team.country.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+    // Enhanced search with memoization for better performance
+    const filteredTeams = useMemo(() => {
+        if (!searchTerm.trim()) return teams;
 
-    const filteredDrivers = drivers.filter(driver =>
-        driver.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        driver.nationality.toLowerCase().includes(searchTerm.toLowerCase())
-    );
+        const searchLower = searchTerm.toLowerCase().trim();
+        return teams.filter(team => {
+            const nameMatch = team.name?.toLowerCase().includes(searchLower);
+            const countryMatch = team.country?.toLowerCase().includes(searchLower);
+            const keyMatch = team.key?.toLowerCase().includes(searchLower);
+
+            // Also search through team drivers
+            const teamDrivers = drivers.filter(driver => driver.teamId === team.id);
+            const driverMatch = teamDrivers.some(driver =>
+                driver.name?.toLowerCase().includes(searchLower) ||
+                driver.nationality?.toLowerCase().includes(searchLower)
+            );
+
+            return nameMatch || countryMatch || keyMatch || driverMatch;
+        });
+    }, [teams, drivers, searchTerm]);
+
+    const filteredDrivers = useMemo(() => {
+        if (!searchTerm.trim()) return drivers;
+
+        const searchLower = searchTerm.toLowerCase().trim();
+        return drivers.filter(driver => {
+            const nameMatch = driver.name?.toLowerCase().includes(searchLower);
+            const nationalityMatch = driver.nationality?.toLowerCase().includes(searchLower);
+            const numberMatch = driver.number?.toString().includes(searchTerm.trim());
+
+            // Also search by team name
+            const team = teams.find(t => t.id === driver.teamId);
+            const teamMatch = team?.name?.toLowerCase().includes(searchLower) ||
+                team?.country?.toLowerCase().includes(searchLower);
+
+            return nameMatch || nationalityMatch || numberMatch || teamMatch;
+        });
+    }, [drivers, teams, searchTerm]);
+
+    // Get search suggestions
+    const searchSuggestions = useMemo(() => {
+        if (!searchTerm.trim() || searchTerm.length < 2) return [];
+
+        const suggestions = new Set();
+        const searchLower = searchTerm.toLowerCase();
+
+        // Add team suggestions
+        teams.forEach(team => {
+            if (team.name?.toLowerCase().includes(searchLower)) {
+                suggestions.add(team.name);
+            }
+            if (team.country?.toLowerCase().includes(searchLower)) {
+                suggestions.add(team.country);
+            }
+        });
+
+        // Add driver suggestions
+        drivers.forEach(driver => {
+            if (driver.name?.toLowerCase().includes(searchLower)) {
+                suggestions.add(driver.name);
+            }
+            if (driver.nationality?.toLowerCase().includes(searchLower)) {
+                suggestions.add(driver.nationality);
+            }
+        });
+
+        return Array.from(suggestions).slice(0, 5);
+    }, [teams, drivers, searchTerm]);
 
     const scrollToTeams = () => {
         const teamsSection = document.getElementById('teams-section');
@@ -76,6 +135,14 @@ function Home({ teams = [], drivers = [], favoriteTeams = [], favoriteDrivers = 
 
     const navigateToDriverDetails = (driverId) => {
         navigate(`/drivers/${driverId}`);
+    };
+
+    const clearSearch = () => {
+        setSearchTerm('');
+    };
+
+    const handleSuggestionClick = (suggestion) => {
+        setSearchTerm(suggestion);
     };
 
     if (isLoading) {
@@ -212,21 +279,62 @@ function Home({ teams = [], drivers = [], favoriteTeams = [], favoriteDrivers = 
                         viewport={{ once: true }}
                         className="w-full"
                     >
-                        {/* Search Bar */}
+                        {/* Enhanced Search Bar */}
                         <div className="mb-8 relative max-w-4xl mx-auto">
-                            <input
-                                type="text"
-                                placeholder="Search teams, drivers, or countries..."
-                                value={searchTerm}
-                                onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full p-4 pl-12 rounded-full border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-red-500 focus:outline-none shadow-lg text-lg"
-                            />
-                            <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
-                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                                </svg>
+                            <div className="relative">
+                                <input
+                                    type="text"
+                                    placeholder="Search teams, drivers, countries, or driver numbers..."
+                                    value={searchTerm}
+                                    onChange={(e) => setSearchTerm(e.target.value)}
+                                    className="w-full p-4 pl-12 pr-12 rounded-full border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-red-500 focus:outline-none shadow-lg text-lg transition-all duration-300"
+                                />
+                                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400 w-6 h-6" />
+                                {searchTerm && (
+                                    <button
+                                        onClick={clearSearch}
+                                        className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors duration-200"
+                                    >
+                                        <X className="w-6 h-6" />
+                                    </button>
+                                )}
                             </div>
+
+                            {/* Search Suggestions */}
+                            {searchSuggestions.length > 0 && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: -10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-700 rounded-lg shadow-xl border border-gray-200 dark:border-gray-600 z-10"
+                                >
+                                    {searchSuggestions.map((suggestion, index) => (
+                                        <button
+                                            key={index}
+                                            onClick={() => handleSuggestionClick(suggestion)}
+                                            className="w-full px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors duration-200 first:rounded-t-lg last:rounded-b-lg"
+                                        >
+                                            <span className="text-gray-700 dark:text-gray-300">{suggestion}</span>
+                                        </button>
+                                    ))}
+                                </motion.div>
+                            )}
                         </div>
+
+                        {/* Search Results Info */}
+                        {searchTerm && (
+                            <motion.div
+                                initial={{ opacity: 0 }}
+                                animate={{ opacity: 1 }}
+                                className="text-center mb-6"
+                            >
+                                <p className="text-gray-600 dark:text-gray-400">
+                                    {activeTab === 'teams'
+                                        ? `Found ${filteredTeams.length} team${filteredTeams.length !== 1 ? 's' : ''} matching "${searchTerm}"`
+                                        : `Found ${filteredDrivers.length} driver${filteredDrivers.length !== 1 ? 's' : ''} matching "${searchTerm}"`
+                                    }
+                                </p>
+                            </motion.div>
+                        )}
 
                         {/* Tabs */}
                         <div className="flex justify-center mb-8">
@@ -241,7 +349,7 @@ function Home({ teams = [], drivers = [], favoriteTeams = [], favoriteDrivers = 
                                                 : 'text-gray-600 dark:text-gray-300 hover:text-red-500'
                                         }`}
                                     >
-                                        {tab}
+                                        {tab} ({tab === 'teams' ? filteredTeams.length : filteredDrivers.length})
                                     </button>
                                 ))}
                             </div>
@@ -310,9 +418,25 @@ function Home({ teams = [], drivers = [], favoriteTeams = [], favoriteDrivers = 
                                             </div>
                                         </motion.div>
                                     )) : (
-                                        <div className="col-span-full text-center py-12">
-                                            <p className="text-gray-500 dark:text-gray-400 text-lg">No teams found</p>
-                                        </div>
+                                        <motion.div
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            className="col-span-full text-center py-12"
+                                        >
+                                            <Search className="mx-auto w-16 h-16 text-gray-400 mb-4" />
+                                            <p className="text-gray-500 dark:text-gray-400 text-lg mb-2">No teams found</p>
+                                            <p className="text-gray-400 dark:text-gray-500 text-sm">
+                                                Try searching for a different team name or country
+                                            </p>
+                                            {searchTerm && (
+                                                <button
+                                                    onClick={clearSearch}
+                                                    className="mt-4 text-red-500 hover:text-red-600 font-medium"
+                                                >
+                                                    Clear search
+                                                </button>
+                                            )}
+                                        </motion.div>
                                     )}
                                 </motion.div>
                             )}
@@ -380,9 +504,25 @@ function Home({ teams = [], drivers = [], favoriteTeams = [], favoriteDrivers = 
                                             </motion.div>
                                         );
                                     }) : (
-                                        <div className="col-span-full text-center py-12">
-                                            <p className="text-gray-500 dark:text-gray-400 text-lg">No drivers found</p>
-                                        </div>
+                                        <motion.div
+                                            initial={{ opacity: 0 }}
+                                            animate={{ opacity: 1 }}
+                                            className="col-span-full text-center py-12"
+                                        >
+                                            <Search className="mx-auto w-16 h-16 text-gray-400 mb-4" />
+                                            <p className="text-gray-500 dark:text-gray-400 text-lg mb-2">No drivers found</p>
+                                            <p className="text-gray-400 dark:text-gray-500 text-sm">
+                                                Try searching for a different driver name, nationality, or team
+                                            </p>
+                                            {searchTerm && (
+                                                <button
+                                                    onClick={clearSearch}
+                                                    className="mt-4 text-red-500 hover:text-red-600 font-medium"
+                                                >
+                                                    Clear search
+                                                </button>
+                                            )}
+                                        </motion.div>
                                     )}
                                 </motion.div>
                             )}
