@@ -1,212 +1,389 @@
-import { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Heart, Flag, Users, Car, Star } from 'lucide-react';
 
-function Home({
-                  teams,
-                  drivers,
-                  favoriteTeams,
-                  favoriteDrivers,
-                  toggleFavoriteTeam,
-                  toggleFavoriteDriver
-              }) {
+// Mock data for demonstration
+const defaultTeams = [
+    { id: '1', name: 'Mercedes', country: 'Germany', key: 'mercedes', drivers: ['ham', 'rus'] },
+    { id: '2', name: 'Red Bull Racing', country: 'Austria', key: 'redBull', drivers: ['ver', 'per'] },
+    { id: '3', name: 'Ferrari', country: 'Italy', key: 'ferrari', drivers: ['lec', 'sai'] },
+    { id: '4', name: 'McLaren', country: 'UK', key: 'mclaren', drivers: ['nor', 'pia'] },
+    { id: '5', name: 'Alpine', country: 'France', key: 'alpine', drivers: ['oco', 'gas'] },
+    { id: '6', name: 'Aston Martin', country: 'UK', key: 'astonMartin', drivers: ['alo', 'str'] }
+];
+
+const defaultDrivers = [
+    { id: 'ham', name: 'Lewis Hamilton', nationality: 'British', teamId: '1', number: 44 },
+    { id: 'rus', name: 'George Russell', nationality: 'British', teamId: '1', number: 63 },
+    { id: 'ver', name: 'Max Verstappen', nationality: 'Dutch', teamId: '2', number: 1 },
+    { id: 'per', name: 'Sergio Pérez', nationality: 'Mexican', teamId: '2', number: 11 },
+    { id: 'lec', name: 'Charles Leclerc', nationality: 'Monégasque', teamId: '3', number: 16 },
+    { id: 'sai', name: 'Carlos Sainz', nationality: 'Spanish', teamId: '3', number: 55 }
+];
+
+const teamColors = {
+    mercedes: 'from-cyan-400 to-teal-600',
+    redBull: 'from-blue-600 to-navy-800',
+    ferrari: 'from-red-500 to-red-700',
+    mclaren: 'from-orange-400 to-orange-600',
+    alpine: 'from-blue-400 to-blue-600',
+    astonMartin: 'from-green-400 to-green-600'
+};
+
+function Home({ teams = defaultTeams, drivers = defaultDrivers, favoriteTeams = [], favoriteDrivers = [], toggleFavoriteTeam = () => {}, toggleFavoriteDriver = () => {} }) {
+    const [currentSlide, setCurrentSlide] = useState(0);
+    const [activeTab, setActiveTab] = useState('teams');
     const [searchTerm, setSearchTerm] = useState('');
-    const [filterFavorite, setFilterFavorite] = useState('all');
-    const navigate = useNavigate();
-    const filteredTeams = teams.filter((team) => {
-        const matchesSearch = team.name.toLowerCase().includes(searchTerm.toLowerCase());
-        const isFav = favoriteTeams.includes(team.id);
-        if (filterFavorite === 'favorite') {
-            return matchesSearch && isFav;
-        }
-        return matchesSearch;
-    });
+    const [isLoading, setIsLoading] = useState(true);
 
-    const teamlessDrivers = drivers.filter((driver) => driver.teamId === null);
-
-    const handleDriverClick = (driverId) => {
-        navigate(`/drivers/${driverId}`);
+    const featuredTeams = teams.slice(0, 3);
+    const stats = {
+        totalTeams: teams.length,
+        totalDrivers: drivers.length,
+        favoriteTeams: favoriteTeams.length,
+        favoriteDrivers: favoriteDrivers.length
     };
 
+    useEffect(() => {
+        const timer = setTimeout(() => setIsLoading(false), 1000);
+        return () => clearTimeout(timer);
+    }, []);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setCurrentSlide((prev) => (prev + 1) % featuredTeams.length);
+        }, 4000);
+        return () => clearInterval(interval);
+    }, [featuredTeams.length]);
+
+    const filteredTeams = teams.filter(team =>
+        team.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        team.country.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    const filteredDrivers = drivers.filter(driver =>
+        driver.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        driver.nationality.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+
+    if (isLoading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-900 via-red-900 to-black">
+                <motion.div
+                    animate={{ rotate: 360 }}
+                    transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                    className="w-20 h-20 border-4 border-red-500 border-t-transparent rounded-full"
+                />
+                <motion.h2
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="ml-4 text-2xl font-bold text-white"
+                >
+                    Loading F1 Data...
+                </motion.h2>
+            </div>
+        );
+    }
+
     return (
-        <div className="space-y-6">
-            {/* Header */}
-            <div className="text-center">
-                <h1 className="text-4xl font-bold text-gray-900 dark:text-white mb-2">
-                    Formula 1 Teams & Drivers
-                </h1>
-                <p className="text-gray-600 dark:text-gray-300">
-                    Explore F1 teams, mark your favorites, and discover drivers without a team
-                </p>
-            </div>
-
-            {/* Search & Filter Controls */}
-            <div className="flex flex-col sm:flex-row gap-4 items-center justify-between bg-white dark:bg-gray-800 p-4 rounded-lg shadow-md">
-                {/* Search */}
-                <div className="flex-1 w-full sm:max-w-md">
-                    <label htmlFor="search" className="sr-only">Search teams</label>
-                    <div className="relative">
-                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                            <svg className="h-5 w-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                      d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                            </svg>
-                        </div>
-                        <input
-                            id="search"
-                            type="text"
-                            placeholder="Search teams..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="input-field pl-10"
-                        />
-                    </div>
-                </div>
-
-                {/* Favorite Filter */}
-                <div className="flex items-center space-x-4">
-                    <label htmlFor="filter" className="text-sm font-medium text-gray-700 dark:text-gray-300">
-                        Filter:
-                    </label>
-                    <select
-                        id="filter"
-                        value={filterFavorite}
-                        onChange={(e) => setFilterFavorite(e.target.value)}
-                        className="input-field w-auto min-w-[120px]"
+        <div className="min-h-screen bg-gradient-to-br from-gray-50 via-white to-gray-100 dark:from-gray-900 dark:via-gray-800 dark:to-black">
+            {/* Hero Section with Carousel - Full Width */}
+            <section className="relative h-96 w-full overflow-hidden bg-gradient-to-r from-red-600 via-red-500 to-orange-500">
+                <div className="absolute inset-0 bg-black bg-opacity-40" />
+                <AnimatePresence mode="wait">
+                    <motion.div
+                        key={currentSlide}
+                        initial={{ opacity: 0, x: 100 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        exit={{ opacity: 0, x: -100 }}
+                        transition={{ duration: 0.8 }}
+                        className="absolute inset-0 flex items-center justify-center"
                     >
-                        <option value="all">All Teams</option>
-                        <option value="favorite">Favorites Only</option>
-                    </select>
-                </div>
-            </div>
-
-            {/* Results Summary */}
-            <div className="text-sm text-gray-600 dark:text-gray-400">
-                Showing {filteredTeams.length} of {teams.length} teams
-                {searchTerm && ` matching "${searchTerm}"`}
-                {filterFavorite === 'favorite' && ' (favorites only)'}
-            </div>
-
-            {/* Teams Grid */}
-            {filteredTeams.length === 0 ? (
-                <div className="text-center py-12">
-                    <div className="text-gray-400 mb-4">
-                        <svg className="mx-auto h-12 w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                  d="M9.172 16.172a4 4 0 015.656 0M9 12h6m-6-4h6m2 5.291A7.962 7.962 0 0112 15c-2.34 0-4.29-1.004-5.824-2.709M15 9a6 6 0 11-12 0 6 6 0 0112 0z" />
-                        </svg>
-                    </div>
-                    <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">No teams found</h3>
-                    <p className="text-gray-500 dark:text-gray-400">Try adjusting your search or filter settings.</p>
-                </div>
-            ) : (
-                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {filteredTeams.map((team) => (
-                        <div key={team.id} className="card">
-                            {/* Team Header */}
-                            <div className="flex justify-between items-center mb-3">
-                                <Link to={`/teams/${team.id}`} className="text-2xl font-semibold text-gray-900 dark:text-white hover:underline">
-                                    {team.name}
-                                </Link>
-                                <button
-                                    onClick={() => toggleFavoriteTeam(team.id)}
-                                    className="focus:outline-none"
-                                    aria-label={favoriteTeams.includes(team.id) ? 'Unfavorite team' : 'Favorite team'}
-                                >
-                                    {favoriteTeams.includes(team.id) ? (
-                                        <svg className="w-6 h-6 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                                            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.966a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.373 2.455a1 1 0 00-.364 1.118l1.286 3.966c.3.921-.755 1.688-1.54 1.118L10 13.348l-3.373 2.455c-.784.57-1.838-.197-1.539-1.118l1.286-3.966a1 1 0 00-.364-1.118L2.637 9.393c-.783-.57-.38-1.81.588-1.81h4.162a1 1 0 00.95-.69L9.049 2.927z" />
-                                        </svg>
-                                    ) : (
-                                        <svg className="w-6 h-6 text-gray-300 hover:text-yellow-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                                  d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.966a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.373 2.455a1 1 0 00-.364 1.118l1.286 3.966c.3.921-.755 1.688-1.54 1.118L12 13.348l-3.373 2.455c-.784.57-1.838-.197-1.539-1.118l1.286-3.966a1 1 0 00-.364-1.118L3.637 9.393c-.783-.57-.38-1.81.588-1.81h4.162a1 1 0 00.95-.69L11.049 2.927z" />
-                                        </svg>
-                                    )}
+                        <div className="text-center text-white z-10">
+                            <motion.h1
+                                initial={{ y: 50, opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                transition={{ delay: 0.2 }}
+                                className="text-6xl font-bold mb-4 tracking-wider"
+                            >
+                                FORMULA 1
+                            </motion.h1>
+                            <motion.p
+                                initial={{ y: 30, opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                transition={{ delay: 0.4 }}
+                                className="text-2xl mb-8 font-light"
+                            >
+                                Experience the Speed, Feel the Passion
+                            </motion.p>
+                            <motion.div
+                                initial={{ y: 30, opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                transition={{ delay: 0.6 }}
+                                className="flex gap-4 justify-center"
+                            >
+                                <button className="bg-red-600 hover:bg-red-700 text-white px-8 py-3 rounded-full font-semibold transition-all duration-300 transform hover:scale-105 shadow-lg">
+                                    Explore Teams
                                 </button>
-                            </div>
-
-                            {/* Drivers List */}
-                            <div className="space-y-2">
-                                {team.drivers.map((driverId) => {
-                                    const driver = drivers.find((d) => d.id === driverId);
-                                    if (!driver) return null;
-
-                                    const isDriverFav = favoriteDrivers.includes(driver.id);
-                                    return (
-                                        <div
-                                            key={driver.id}
-                                            className="flex justify-between items-center bg-gray-50 dark:bg-gray-700 p-2 rounded"
-                                        >
-                      <span
-                          className="cursor-pointer text-blue-600 dark:text-blue-300 hover:underline"
-                          onClick={() => handleDriverClick(driver.id)}
-                      >
-                        {driver.name}
-                      </span>
-                                            <button
-                                                onClick={() => toggleFavoriteDriver(driver.id)}
-                                                className="focus:outline-none"
-                                                aria-label={isDriverFav ? 'Unfavorite driver' : 'Favorite driver'}
-                                            >
-                                                {isDriverFav ? (
-                                                    <svg className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                                                        <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.966a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.373 2.455a1 1 0 00-.364 1.118l1.286 3.966c.3.921-.755 1.688-1.54 1.118L10 13.348l-3.373 2.455c-.784.57-1.838-.197-1.539-1.118l1.286-3.966a1 1 0 00-.364-1.118L2.637 9.393c-.783-.57-.38-1.81.588-1.81h4.162a1 1 0 00.95-.69L9.049 2.927z" />
-                                                    </svg>
-                                                ) : (
-                                                    <svg className="w-5 h-5 text-gray-300 hover:text-yellow-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                                              d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.966a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.373 2.455a1 1 0 00-.364 1.118l1.286 3.966c.3.921-.755 1.688-1.54 1.118L12 13.348l-3.373 2.455c-.784.57-1.838-.197-1.539-1.118l1.286-3.966a1 1 0 00-.364-1.118L3.637 9.393c-.783-.57-.38-1.81.588-1.81h4.162a1 1 0 00.95-.69L11.049 2.927z" />
-                                                    </svg>
-                                                )}
-                                            </button>
-                                        </div>
-                                    );
-                                })}
-                            </div>
+                                <button className="bg-transparent border-2 border-white text-white hover:bg-white hover:text-red-600 px-8 py-3 rounded-full font-semibold transition-all duration-300 transform hover:scale-105">
+                                    My Favorites
+                                </button>
+                            </motion.div>
                         </div>
+                    </motion.div>
+                </AnimatePresence>
+
+                {/* Carousel Navigation */}
+                <div className="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2">
+                    {featuredTeams.map((_, index) => (
+                        <button
+                            key={index}
+                            onClick={() => setCurrentSlide(index)}
+                            className={`w-3 h-3 rounded-full transition-all duration-300 ${
+                                index === currentSlide ? 'bg-white' : 'bg-white bg-opacity-50'
+                            }`}
+                        />
                     ))}
                 </div>
-            )}
 
-            {/* 3) Drivers Without a Team */}
-            {teamlessDrivers.length > 0 && (
-                <div className="mt-12">
-                    <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-4">
-                        Drivers without a Team
-                    </h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {teamlessDrivers.map((driver) => {
-                            const isFav = favoriteDrivers.includes(driver.id);
-                            return (
-                                <div key={driver.id} className="card flex justify-between items-center p-4">
-                  <span
-                      className="cursor-pointer text-blue-600 dark:text-blue-300 hover:underline"
-                      onClick={() => handleDriverClick(driver.id)}
-                  >
-                    {driver.name} ({driver.nationality})
-                  </span>
-                                    <button
-                                        onClick={() => toggleFavoriteDriver(driver.id)}
-                                        className="focus:outline-none"
-                                        aria-label={isFav ? 'Unfavorite driver' : 'Favorite driver'}
-                                    >
-                                        {isFav ? (
-                                            <svg className="w-5 h-5 text-yellow-400" fill="currentColor" viewBox="0 0 20 20">
-                                                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.966a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.373 2.455a1 1 0 00-.364 1.118l1.286 3.966c.3.921-.755 1.688-1.54 1.118L10 13.348l-3.373 2.455c-.784.57-1.838-.197-1.539-1.118l1.286-3.966a1 1 0 00-.364-1.118L2.637 9.393c-.783-.57-.38-1.81.588-1.81h4.162a1 1 0 00.95-.69L9.049 2.927z" />
-                                            </svg>
-                                        ) : (
-                                            <svg className="w-5 h-5 text-gray-300 hover:text-yellow-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-                                                      d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.286 3.966a1 1 0 00.95.69h4.162c.969 0 1.371 1.24.588 1.81l-3.373 2.455a1 1 0 00-.364 1.118l1.286 3.966c.3.921-.755 1.688-1.54 1.118L12 13.348l-3.373 2.455c-.784.57-1.838-.197-1.539-1.118l1.286-3.966a1 1 0 00-.364-1.118L3.637 9.393c-.783-.57-.38-1.81.588-1.81h4.162a1 1 0 00.95-.69L11.049 2.927z" />
-                                            </svg>
-                                        )}
-                                    </button>
-                                </div>
-                            );
-                        })}
-                    </div>
+                {/* Geometric Background Elements */}
+                <div className="absolute top-10 right-10 w-32 h-32 border-4 border-white border-opacity-20 rotate-45 animate-pulse" />
+                <div className="absolute bottom-10 left-10 w-24 h-24 bg-white bg-opacity-10 rounded-full animate-bounce" />
+            </section>
+
+            {/* Stats Section - Full Width */}
+            <section className="py-16 w-full bg-white dark:bg-gray-800">
+                <div className="px-8">
+                    <motion.div
+                        initial={{ y: 50, opacity: 0 }}
+                        whileInView={{ y: 0, opacity: 1 }}
+                        viewport={{ once: true }}
+                        className="grid grid-cols-2 md:grid-cols-4 gap-8 max-w-6xl mx-auto"
+                    >
+                        {[
+                            { icon: Users, label: 'Teams', value: stats.totalTeams, color: 'text-blue-500' },
+                            { icon: Car, label: 'Drivers', value: stats.totalDrivers, color: 'text-green-500' },
+                            { icon: Heart, label: 'Favorite Teams', value: stats.favoriteTeams, color: 'text-red-500' },
+                            { icon: Star, label: 'Favorite Drivers', value: stats.favoriteDrivers, color: 'text-yellow-500' }
+                        ].map((stat, index) => (
+                            <motion.div
+                                key={stat.label}
+                                initial={{ scale: 0 }}
+                                whileInView={{ scale: 1 }}
+                                viewport={{ once: true }}
+                                transition={{ delay: index * 0.1 }}
+                                className="text-center p-6 rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-700 dark:to-gray-600 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                            >
+                                <stat.icon className={`text-4xl mx-auto mb-3 ${stat.color}`} />
+                                <div className="text-3xl font-bold text-gray-800 dark:text-white">{stat.value}</div>
+                                <div className="text-sm text-gray-600 dark:text-gray-300 font-medium">{stat.label}</div>
+                            </motion.div>
+                        ))}
+                    </motion.div>
                 </div>
-            )}
+            </section>
+
+            {/* Search and Tabs Section - Full Width */}
+            <section className="py-16 w-full bg-gradient-to-r from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900">
+                <div className="px-8">
+                    <motion.div
+                        initial={{ y: 30, opacity: 0 }}
+                        whileInView={{ y: 0, opacity: 1 }}
+                        viewport={{ once: true }}
+                        className="w-full"
+                    >
+                        {/* Search Bar */}
+                        <div className="mb-8 relative max-w-4xl mx-auto">
+                            <input
+                                type="text"
+                                placeholder="Search teams, drivers, or countries..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full p-4 pl-12 rounded-full border-2 border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white focus:border-red-500 focus:outline-none shadow-lg text-lg"
+                            />
+                            <div className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400">
+                                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                            </div>
+                        </div>
+
+                        {/* Tabs */}
+                        <div className="flex justify-center mb-8">
+                            <div className="bg-white dark:bg-gray-700 p-1 rounded-full shadow-lg">
+                                {['teams', 'drivers'].map((tab) => (
+                                    <button
+                                        key={tab}
+                                        onClick={() => setActiveTab(tab)}
+                                        className={`px-8 py-3 rounded-full font-semibold transition-all duration-300 capitalize ${
+                                            activeTab === tab
+                                                ? 'bg-red-500 text-white shadow-lg'
+                                                : 'text-gray-600 dark:text-gray-300 hover:text-red-500'
+                                        }`}
+                                    >
+                                        {tab}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Teams Grid - Full Width */}
+                        <AnimatePresence mode="wait">
+                            {activeTab === 'teams' && (
+                                <motion.div
+                                    key="teams"
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -20 }}
+                                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6"
+                                >
+                                    {filteredTeams.map((team, index) => (
+                                        <motion.div
+                                            key={team.id}
+                                            initial={{ opacity: 0, y: 50 }}
+                                            animate={{ opacity: 1, y: 0 }}
+                                            transition={{ delay: index * 0.1 }}
+                                            className="group relative overflow-hidden rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:scale-105"
+                                        >
+                                            <div className={`h-48 bg-gradient-to-br ${teamColors[team.key]} relative`}>
+                                                <div className="absolute inset-0 bg-black bg-opacity-20 group-hover:bg-opacity-10 transition-all duration-300" />
+
+                                                {/* Favorite Button */}
+                                                <button
+                                                    onClick={() => toggleFavoriteTeam(team.id)}
+                                                    className="absolute top-4 right-4 p-2 rounded-full bg-white bg-opacity-20 hover:bg-opacity-30 transition-all duration-300"
+                                                >
+                                                    {favoriteTeams.includes(team.id) ? (
+                                                        <Heart className="text-red-500 text-xl fill-current" />
+                                                    ) : (
+                                                        <Heart className="text-white text-xl" />
+                                                    )}
+                                                </button>
+
+                                                {/* Team Info */}
+                                                <div className="absolute bottom-4 left-4 text-white">
+                                                    <h3 className="text-2xl font-bold mb-1">{team.name}</h3>
+                                                    <p className="text-sm opacity-90 flex items-center">
+                                                        <Flag className="mr-2 w-4 h-4" />
+                                                        {team.country}
+                                                    </p>
+                                                </div>
+
+                                                {/* Decorative Elements */}
+                                                <div className="absolute top-4 left-4 w-12 h-12 border-2 border-white border-opacity-50 rounded-full animate-pulse" />
+                                                <div className="absolute bottom-4 right-4 w-8 h-8 bg-white bg-opacity-20 rotate-45" />
+                                            </div>
+
+                                            {/* Team Details */}
+                                            <div className="p-6 bg-white dark:bg-gray-800">
+                                                <div className="flex justify-between items-center mb-3">
+                                                    <span className="text-sm text-gray-500 dark:text-gray-400">
+                                                        {team.drivers.length} Drivers
+                                                    </span>
+                                                    <button className="text-red-500 hover:text-red-600 font-semibold text-sm">
+                                                        View Details →
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    ))}
+                                </motion.div>
+                            )}
+
+                            {/* Drivers Grid - Full Width */}
+                            {activeTab === 'drivers' && (
+                                <motion.div
+                                    key="drivers"
+                                    initial={{ opacity: 0, y: 20 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    exit={{ opacity: 0, y: -20 }}
+                                    className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6"
+                                >
+                                    {filteredDrivers.map((driver, index) => {
+                                        const team = teams.find(t => t.id === driver.teamId);
+                                        return (
+                                            <motion.div
+                                                key={driver.id}
+                                                initial={{ opacity: 0, scale: 0.9 }}
+                                                animate={{ opacity: 1, scale: 1 }}
+                                                transition={{ delay: index * 0.1 }}
+                                                className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg hover:shadow-2xl transition-all duration-500 transform hover:scale-105 overflow-hidden"
+                                            >
+                                                <div className="relative p-6">
+                                                    {/* Driver Number */}
+                                                    <div className="absolute top-4 right-4 w-12 h-12 bg-red-500 rounded-full flex items-center justify-center text-white font-bold text-lg">
+                                                        {driver.number}
+                                                    </div>
+
+                                                    {/* Favorite Button */}
+                                                    <button
+                                                        onClick={() => toggleFavoriteDriver(driver.id)}
+                                                        className="absolute top-4 left-4 p-2 rounded-full hover:bg-gray-100 dark:hover:bg-gray-700 transition-all duration-300"
+                                                    >
+                                                        {favoriteDrivers.includes(driver.id) ? (
+                                                            <Heart className="text-red-500 text-xl fill-current" />
+                                                        ) : (
+                                                            <Heart className="text-gray-400 text-xl" />
+                                                        )}
+                                                    </button>
+
+                                                    <div className="mt-8">
+                                                        <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                                                            {driver.name}
+                                                        </h3>
+                                                        <p className="text-gray-600 dark:text-gray-400 mb-3 flex items-center">
+                                                            <Flag className="mr-2 w-4 h-4" />
+                                                            {driver.nationality}
+                                                        </p>
+                                                        {team && (
+                                                            <div className={`inline-block px-3 py-1 rounded-full text-sm font-medium text-white bg-gradient-to-r ${teamColors[team.key]}`}>
+                                                                {team.name}
+                                                            </div>
+                                                        )}
+                                                        <div className="mt-4">
+                                                            <button className="text-red-500 hover:text-red-600 font-semibold text-sm">
+                                                                View Profile →
+                                                            </button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </motion.div>
+                                        );
+                                    })}
+                                </motion.div>
+                            )}
+                        </AnimatePresence>
+                    </motion.div>
+                </div>
+            </section>
+
+            {/* Call to Action - Full Width */}
+            <section className="py-20 w-full bg-gradient-to-r from-red-600 via-red-500 to-orange-500 relative overflow-hidden">
+                <div className="absolute inset-0 bg-black bg-opacity-20" />
+                <div className="px-8 text-center relative z-10">
+                    <motion.div
+                        initial={{ y: 50, opacity: 0 }}
+                        whileInView={{ y: 0, opacity: 1 }}
+                        viewport={{ once: true }}
+                        className="max-w-3xl mx-auto text-white"
+                    >
+                        <h2 className="text-4xl md:text-5xl font-bold mb-6">
+                            Ready to Create Your Own Team?
+                        </h2>
+                        <p className="text-xl mb-8 opacity-90">
+                            Build your dream F1 team with custom drivers and compete in the championship of your imagination.
+                        </p>
+                        <button className="inline-block bg-white text-red-600 px-10 py-4 rounded-full font-bold text-lg hover:bg-gray-100 transition-all duration-300 transform hover:scale-105 shadow-xl">
+                            Create Your Team
+                        </button>
+                    </motion.div>
+                </div>
+
+                {/* Animated Background Elements */}
+                <div className="absolute top-10 left-10 w-20 h-20 border-2 border-white border-opacity-30 rounded-full animate-ping" />
+                <div className="absolute bottom-10 right-10 w-16 h-16 bg-white bg-opacity-10 rotate-45 animate-bounce" />
+                <div className="absolute top-1/2 left-1/4 w-24 h-24 border-4 border-white border-opacity-20 rotate-45 animate-pulse" />
+            </section>
         </div>
     );
 }
